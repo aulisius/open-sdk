@@ -1,0 +1,25 @@
+{
+  "name": "@faizaanceg/open-sdk",
+  "description": "Yet Another OpenAPI to SDK Generator",
+  "version": "0.0.1",
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  },
+  "bin": {
+    "open-sdk": "cli.mjs"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.mjs"
+    }
+  },
+  "author": {
+    "email": "aulisius7@gmail.com",
+    "name": "N Md Faizaan"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aulisius/open-sdk.git"
+  },
+  "license": "Apache-2.0"
+}
