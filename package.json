@@ -1,7 +1,9 @@
 {
   "name": "@faizaanceg/open-sdk",
+  "private": false,
   "description": "Yet Another OpenAPI to SDK Generator",
   "version": "0.0.1",
+  "scripts": {},
   "devDependencies": {
     "@types/node": "^22.10.2"
   },
@@ -19,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/aulisius/open-sdk.git"
+    "url": "git+https://github.com/aulisius/open-sdk.git"
   },
   "license": "Apache-2.0"
 }
