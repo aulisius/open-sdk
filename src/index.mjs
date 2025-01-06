@@ -1,2 +1,2 @@
 export * from "./spec.mjs";
-export * as TS from "./codegen/typescript/generate.mjs";
+export * from "./codegen/core/generate.mjs";

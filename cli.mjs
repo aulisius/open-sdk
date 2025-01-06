@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
-import { TS, parseSpecFile } from "@faizaanceg/opensdk";
+import { createClient, parseSpecFile } from "@faizaanceg/open-sdk";
 import { log } from "node:console";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -117,18 +117,16 @@ switch (subcommand) {
         let spec = parseSpecFile(
           resolve(join(process.cwd(), options["--spec"]))
         );
-        let LanguageClient;
-        if (options["--language"].toLowerCase() === "typescript") {
-          LanguageClient = TS;
-        }
-        LanguageClient?.createClient(
+        createClient(
           spec,
-          resolve(join(process.cwd(), options["--output"]))
+          resolve(join(process.cwd(), options["--output"])),
+          options["--language"].toLowerCase()
         );
       } catch (error) {
         console.error(
           error.message +
-            " Please use `opensdk help` to understand the correct usage"
+            " Please use `opensdk help` to understand the correct usage",
+          error
         );
         exit(1);
       }
