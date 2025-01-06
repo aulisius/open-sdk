@@ -7,8 +7,8 @@ A flexible SDK generator that creates type-safe API client libraries from OpenAP
 - Generates client libraries from OpenAPI 3.x specifications
 - Supports multiple programming languages:
   - TypeScript
-  - Java (WIP)
-  - PHP (WIP)
+  - Java
+  - PHP
 - Creates type-safe interfaces and models
 - Generates service classes for API operations
 - Handles proper file organization and dependencies
