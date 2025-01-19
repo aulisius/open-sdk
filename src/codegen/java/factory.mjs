@@ -1,9 +1,6 @@
 // @ts-check
+import { capitalize } from "../../util.mjs";
 import { CodeGen } from "../core/factory.mjs";
-
-function capitalize(string) {
-  return string.slice(0, 1).toUpperCase() + string.slice(1);
-}
 
 export class JavaCodeGen extends CodeGen {
   createInterface(name, props, ...children) {
@@ -12,15 +9,20 @@ export class JavaCodeGen extends CodeGen {
       parentInterfaces.length > 0
         ? ` extends ${parentInterfaces.join(", ")}`
         : "";
-    return `${visibility} interface ${capitalize(
-      name
-    )}${extendsClause} ${this.createBlock(true, ...children)}`;
+    return `${this.syntax("AccessModifiers", {
+      visibility,
+    })} interface ${capitalize(name)}${extendsClause} ${this.block(
+      true,
+      ...children
+    )}`;
   }
 
-  createRecord(record, ...fields) {
-    return this.createStatement(
-      `public record ${record} (${fields.join(", ")}) {}`
-    );
+  record(record, ...fields) {
+    return this.stmt(`public record ${record} (${fields.join(", ")}) {}`);
+  }
+
+  import(path, { name = "*", isStatic = false } = {}) {
+    return `import ${isStatic ? "static " : ""}${path}.${name};`;
   }
 
   /**
@@ -30,17 +32,10 @@ export class JavaCodeGen extends CodeGen {
    * @param  {...string} children
    * @returns {string}
    */
-  createSyntax(keyword, props, ...children) {
+  syntax(keyword, props, ...children) {
     switch (keyword) {
       case "Program": {
         return children.filter(Boolean).join("\n");
-      }
-      case "Import": {
-        const { path, importName = "*", isStatic = false } = props;
-        return `import ${isStatic ? "static " : ""}${path}.${importName};`;
-      }
-      case "Package": {
-        return `package ${props.name};`;
       }
       case "Class": {
         const {
@@ -66,10 +61,7 @@ export class JavaCodeGen extends CodeGen {
 
         return `${modifiers} class ${capitalize(
           name
-        )}${extendsClause}${implementsClause} ${this.createBlock(
-          true,
-          ...children
-        )}`;
+        )}${extendsClause}${implementsClause} ${this.block(true, ...children)}`;
       }
       case "Field": {
         const {
@@ -96,7 +88,7 @@ export class JavaCodeGen extends CodeGen {
         const { name, parameters = [], visibility = "public" } = props;
         const params = parameters.map((p) => `${p.type} ${p.name}`).join(", ");
 
-        return `${visibility} ${name}(${params}) ${this.createBlock(
+        return `${visibility} ${name}(${params}) ${this.block(
           true,
           ...children
         )}`;
@@ -105,14 +97,23 @@ export class JavaCodeGen extends CodeGen {
         const {
           name,
           returnType = "void",
-          visibility = "public",
           parameters = [],
+          throws = [],
+        } = props;
+        const params = parameters
+          .map((p) => this.syntax("Parameter", p))
+          .join(", ");
+        const throwsClause =
+          throws.length > 0 ? ` throws ${throws.join(", ")}` : "";
+        return `${returnType} ${name}(${params})${throwsClause}`;
+      }
+      case "AccessModifiers": {
+        const {
+          visibility,
           isStatic = false,
           final = false,
           synchronized = false,
-          throws = [],
         } = props;
-
         const modifiers = [
           visibility,
           isStatic ? "static" : "",
@@ -121,24 +122,28 @@ export class JavaCodeGen extends CodeGen {
         ]
           .filter(Boolean)
           .join(" ");
-
-        const params = parameters
-          .map((p) => this.createSyntax("Parameter", p))
-          .join(", ");
-        const throwsClause =
-          throws.length > 0 ? ` throws ${throws.join(", ")}` : "";
-
-        return `${modifiers} ${returnType} ${name}(${params})${throwsClause}`;
+        return modifiers;
       }
       case "Method": {
-        return `${this.createSyntax(
+        return `${this.syntax("AccessModifiers", props)} ${this.syntax(
           "MethodDeclaration",
           props
-        )} ${this.createBlock(true, ...children)}`;
+        )} ${this.block(true, ...children)}`;
       }
       case "Parameter": {
-        const { name, type, final = false } = props;
-        return `${final ? "final " : ""}${type} ${name}`;
+        const { name, type } = props;
+        const modifiers = this.syntax("AccessModifiers", props);
+        return `${modifiers ? modifiers + " " : ""}${type} ${name}`;
+      }
+      case "Enum": {
+        const { name, values } = props;
+        return `${this.syntax("AccessModifiers", {
+          visibility: "public",
+        })} enum ${name} ${this.block(
+          true,
+          ...values.map((v) => v + ","),
+          ...children
+        )}`;
       }
       default:
         return children.join("");
