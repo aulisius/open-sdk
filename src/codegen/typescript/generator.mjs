@@ -2,6 +2,7 @@
 import { extname, join, relative } from "node:path";
 import { BaseGenerator } from "../core/generator.mjs";
 import { TypeScriptCodeGen } from "./factory.mjs";
+import { capitalize, cleanRef, isObjectEmpty } from "../../util.mjs";
 
 function normalizeNameToFile(resource) {
   return resource
@@ -50,16 +51,16 @@ export class TypeScriptGenerator extends BaseGenerator {
     this.resources.push({ name: "OpenSDKHttpClient", path });
     this.writeFile(
       join(this.libDir, "opensdk-http-client.ts"),
-      this.codeGen.createSyntax(
+      this.codeGen.syntax(
         "Program",
         {},
-        this.codeGen.createSyntax(
+        this.codeGen.syntax(
           "Export",
           { isDefault: false },
           this.codeGen.createInterface(
             "OpenSDKHttpClient",
             {},
-            this.codeGen.createSyntax("Method", {
+            this.codeGen.syntax("Method", {
               name: "execute",
               returnType: "Promise<any>",
               parameters: [
@@ -78,11 +79,11 @@ export class TypeScriptGenerator extends BaseGenerator {
   normalizeType(info) {
     if (info.type === "array") {
       return info.items.$ref
-        ? `${this.cleanRef(info.items.$ref)}[]`
+        ? `${cleanRef(info.items.$ref)}[]`
         : `${info.items.type}[]`;
     }
     if (info.$ref) {
-      return this.cleanRef(info.$ref);
+      return cleanRef(info.$ref);
     }
     const typeMap = {
       integer: "number",
@@ -99,10 +100,10 @@ export class TypeScriptGenerator extends BaseGenerator {
       let deps = [];
       Object.values(schema.properties ?? {}).forEach((info) => {
         if (info.$ref) {
-          deps.push(this.cleanRef(info.$ref));
+          deps.push(cleanRef(info.$ref));
         } else if (info.type === "array") {
           if (info.items.$ref) {
-            deps.push(this.cleanRef(info.items.$ref));
+            deps.push(cleanRef(info.items.$ref));
           }
         }
       });
@@ -115,25 +116,25 @@ export class TypeScriptGenerator extends BaseGenerator {
       this.resources.push({ name, path });
       this.writeFile(
         path,
-        this.codeGen.createSyntax(
+        this.codeGen.syntax(
           "Program",
           {},
           ...findDependents(schema).map((dependent) =>
-            this.codeGen.createSyntax("Import", {
+            this.codeGen.syntax("Import", {
               importName: dependent,
               isDefault: false,
               path: `./${normalizeNameToFile(dependent)}`,
             })
           ),
-          this.codeGen.createSyntax(
+          this.codeGen.syntax(
             "Export",
             { isDefault: false },
             this.codeGen.createInterface(
               name,
               {},
               ...Object.entries(properties).map(([prop, info]) =>
-                this.codeGen.createStatement(
-                  this.codeGen.createSyntax("Property", {
+                this.codeGen.stmt(
+                  this.codeGen.syntax("Property", {
                     name: prop,
                     type: this.normalizeType(info),
                     required: required.includes(prop),
@@ -152,13 +153,11 @@ export class TypeScriptGenerator extends BaseGenerator {
       let resources = [];
       let { qs, body } = info.params;
       if (Object.keys(qs ?? {}).length > 0) {
-        let name = `${this.capitalize(service)}${this.capitalize(method)}Query`;
+        let name = `${capitalize(service)}${capitalize(method)}Query`;
         resources.push([name, qs, "query", method]);
       }
       if (Object.keys(body ?? {}).length > 0) {
-        let name = `${this.capitalize(service)}${this.capitalize(
-          method
-        )}Command`;
+        let name = `${capitalize(service)}${capitalize(method)}Command`;
         resources.push([name, body, "body", method]);
       }
       return [method, resources];
@@ -167,7 +166,7 @@ export class TypeScriptGenerator extends BaseGenerator {
     for (const [service, operations] of Object.entries(
       this.spec.OperationsWithTypeDef
     )) {
-      const serviceName = this.capitalize(service);
+      const serviceName = capitalize(service);
 
       let path = join(this.serviceDir, `${normalizeNameToFile(service)}.ts`);
       this.services.push({ name: service, path });
@@ -178,7 +177,7 @@ export class TypeScriptGenerator extends BaseGenerator {
         )
       );
       const createParameter = ([name, _, argName]) => {
-        return this.codeGen.createSyntax("Parameter", {
+        return this.codeGen.syntax("Parameter", {
           name: argName,
           type: name,
         });
@@ -187,13 +186,13 @@ export class TypeScriptGenerator extends BaseGenerator {
       // Generate service interface
       this.writeFile(
         path,
-        this.codeGen.createSyntax(
+        this.codeGen.syntax(
           "Program",
           {},
-          this.codeGen.createBlock(
+          this.codeGen.block(
             false,
             ...this.resources.map((resource) =>
-              this.codeGen.createSyntax("Import", {
+              this.codeGen.syntax("Import", {
                 path: relative(
                   this.baseDir,
                   resource.path.replace(extname(resource.path), "")
@@ -202,28 +201,28 @@ export class TypeScriptGenerator extends BaseGenerator {
               })
             )
           ),
-          this.codeGen.createBlock(
+          this.codeGen.block(
             false,
             ...Object.values(relatedResources).flatMap(([[name, property]]) =>
               this.codeGen.createInterface(
                 name,
                 ...Object.entries(property).map(([name, details]) =>
-                  this.codeGen.createSyntax("Property", { name, ...details })
+                  this.codeGen.syntax("Property", { name, ...details })
                 )
               )
             )
           ),
           //
-          this.codeGen.createBlock(
+          this.codeGen.block(
             false,
-            this.codeGen.createSyntax(
+            this.codeGen.syntax(
               "Export",
               {},
               this.codeGen.createInterface(
                 `${serviceName}Service`,
                 {},
                 ...Object.entries(operations).map(([method, info]) =>
-                  this.codeGen.createSyntax("MethodDeclaration", {
+                  this.codeGen.syntax("MethodDeclaration", {
                     name: method,
                     returnType: `Promise<${this.getReturnType(info.schemas)}>`,
                     parameters: this.getMethodParameters(info.params),
@@ -232,16 +231,16 @@ export class TypeScriptGenerator extends BaseGenerator {
               )
             )
           ),
-          this.codeGen.createBlock(
+          this.codeGen.block(
             false,
-            this.codeGen.createSyntax(
+            this.codeGen.syntax(
               "Export",
               {},
-              this.codeGen.createSyntax(
+              this.codeGen.syntax(
                 "Class",
                 {
                   name: `${serviceName}ServiceImpl`,
-                  interfaces: [`${this.capitalize(service)}Service`],
+                  interfaces: [`${capitalize(service)}Service`],
                   members: [
                     {
                       name: "httpClient",
@@ -252,7 +251,7 @@ export class TypeScriptGenerator extends BaseGenerator {
                 },
 
                 ...Object.entries(operations).map(([method, info]) =>
-                  this.codeGen.createSyntax(
+                  this.codeGen.syntax(
                     "MethodDefinition",
                     {
                       async: true,
@@ -277,13 +276,13 @@ export class TypeScriptGenerator extends BaseGenerator {
     // Generate main API client
     this.writeFile(
       join(this.baseDir, "client.ts"),
-      this.codeGen.createSyntax(
+      this.codeGen.syntax(
         "Program",
         {},
-        this.codeGen.createBlock(
+        this.codeGen.block(
           false,
           ...this.resources.map((resource) =>
-            this.codeGen.createSyntax("Import", {
+            this.codeGen.syntax("Import", {
               path:
                 "./" +
                 relative(
@@ -294,10 +293,10 @@ export class TypeScriptGenerator extends BaseGenerator {
             })
           )
         ),
-        this.codeGen.createBlock(
+        this.codeGen.block(
           false,
           ...this.services.map((service) =>
-            this.codeGen.createSyntax("Import", {
+            this.codeGen.syntax("Import", {
               path:
                 "./" +
                 relative(
@@ -305,16 +304,16 @@ export class TypeScriptGenerator extends BaseGenerator {
                   service.path.replace(extname(service.path), "")
                 ),
               importName: [
-                `${this.capitalize(service.name)}Service`,
-                `${this.capitalize(service.name)}ServiceImpl`,
+                `${capitalize(service.name)}Service`,
+                `${capitalize(service.name)}ServiceImpl`,
               ].join(", "),
             })
           )
         ),
-        this.codeGen.createBlock(
+        this.codeGen.block(
           false,
-          this.codeGen.createSyntax("Class", {
-            name: `${this.capitalize(this.spec.service)}ClientFactory`,
+          this.codeGen.syntax("Class", {
+            name: `${capitalize(this.spec.service)}ClientFactory`,
             members: [
               {
                 name: "#httpClient",
@@ -323,38 +322,36 @@ export class TypeScriptGenerator extends BaseGenerator {
               },
             ].concat(
               ...this.services.map((service) => ({
-                name: this.capitalize(service.name),
-                type: `${this.capitalize(service.name)}Service`,
+                name: capitalize(service.name),
+                type: `${capitalize(service.name)}Service`,
                 required: true,
               }))
             ),
           })
         ),
-        this.codeGen.createBlock(
+        this.codeGen.block(
           false,
-          this.codeGen.createSyntax(
+          this.codeGen.syntax(
             "Export",
             {},
-            this.codeGen.createSyntax(
+            this.codeGen.syntax(
               "FunctionDefinition",
               {
-                name: `create${this.capitalize(this.spec.service)}Client`,
+                name: `create${capitalize(this.spec.service)}Client`,
                 parameters: [
-                  this.codeGen.createSyntax("Parameter", {
+                  this.codeGen.syntax("Parameter", {
                     name: "httpClient",
                     type: "OpenSDKHttpClient",
                   }),
                 ],
               },
-              this.codeGen.createStatement(
-                `return new ${this.capitalize(
+              this.codeGen.stmt(
+                `return new ${capitalize(
                   this.spec.service
                 )}ClientFactory(httpClient, ${this.services
                   .map(
                     (service) =>
-                      `new ${this.capitalize(
-                        service.name
-                      )}ServiceImpl(httpClient)`
+                      `new ${capitalize(service.name)}ServiceImpl(httpClient)`
                   )
                   .join(",")})`
               )
@@ -367,8 +364,8 @@ export class TypeScriptGenerator extends BaseGenerator {
 
   renderTemplate(info) {
     const { method, path, params } = info;
-    const query = this.isObjectEmpty(params.qs) ? "null" : "query";
-    const body = this.isObjectEmpty(params.body) ? "null" : "body";
+    const query = isObjectEmpty(params.qs) ? "null" : "query";
+    const body = isObjectEmpty(params.body) ? "null" : "body";
     return `return this.#httpClient.execute("${method.toUpperCase()}", "${path}", ${query}, ${body});`;
   }
 }

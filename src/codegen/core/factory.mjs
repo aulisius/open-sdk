@@ -1,15 +1,11 @@
 // @ts-check
-function capitalize(string) {
-  return string.slice(0, 1).toUpperCase() + string.slice(1);
-}
-
 function getIndent(level = 1) {
   return "    ".repeat(level);
 }
 
 /**
  * @typedef {'Program' | 'Import' | 'Package' | 'Class' | 'MethodDeclaration' |
- *           'Field' | 'Constructor' | 'Method' | 'Parameter' | 'Enum'} Keyword
+ *           'Field' | 'Constructor' | 'Method' | 'Parameter' | 'Enum' | 'AccessModifiers'} Keyword
  */
 
 export class CodeGen {
@@ -18,7 +14,7 @@ export class CodeGen {
    * @param {string} stmt
    * @returns {string}
    */
-  createStatement(stmt) {
+  stmt(stmt) {
     return `${stmt};`;
   }
 
@@ -29,15 +25,15 @@ export class CodeGen {
    * @param {string} rightExpr
    * @returns {string}
    */
-  createAssignment(leftExpr, assignment, rightExpr) {
-    return this.createStatement(`${leftExpr} ${assignment} ${rightExpr}`);
+  assignment(leftExpr, assignment, rightExpr) {
+    return this.stmt(`${leftExpr} ${assignment} ${rightExpr}`);
   }
   /**
    *
    * @param  {...string} children
    * @returns {string}
    */
-  createComment(...children) {
+  comment(...children) {
     {
       const multiline = children.length > 1;
       if (multiline) {
@@ -54,7 +50,7 @@ export class CodeGen {
    * @param {...string} children - Child elements
    * @returns {string} The generated Java code
    */
-  createSyntax(keyword, props, ...children) {
+  syntax(keyword, props, ...children) {
     return "";
   }
 
@@ -63,15 +59,18 @@ export class CodeGen {
   }
 
   /**
-   * 
-   * @param {boolean} newScope 
-   * @param  {...string} children 
+   *
+   * @param {boolean} newScope
+   * @param  {...string} children
    * @returns {string}
    */
-  createBlock(newScope, ...children) {
+  block(newScope, ...children) {
     if (newScope) {
       return `{
-${children.map((c) => `${getIndent()}${c}`).join("\n")}
+${children
+  .filter(Boolean)
+  .map((c) => `${getIndent()}${c}`)
+  .join("\n")}
 }`;
     }
     return children.join("\n");

@@ -1,11 +1,12 @@
 // @ts-check
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { isObjectEmpty } from "../../util.mjs";
 
 export class BaseGenerator {
   /**
    * @param {import("./factory.mjs").CodeGen} codeGen
    * @param {Record<string, any>} spec
-   * @param {string} output 
+   * @param {string} output
    */
   constructor(codeGen, spec, output) {
     this.codeGen = codeGen;
@@ -15,30 +16,6 @@ export class BaseGenerator {
     this.resourceDir = null;
     this.serviceDir = null;
     this.libDir = null;
-  }
-
-  /**
-   * @protected
-   * @param {string} str
-   */
-  capitalize(str) {
-    return str.slice(0, 1).toUpperCase() + str.slice(1);
-  }
-
-  /**
-   * @protected
-   * @param {Record<string, any>} obj
-   */
-  isObjectEmpty(obj) {
-    return Object.keys(obj ?? {}).length === 0;
-  }
-
-  /**
-   * @protected
-   * @param {string} ref
-   */
-  cleanRef(ref) {
-    return this.capitalize(ref.replace(`#/components/schemas/`, ""));
   }
 
   /**
@@ -69,7 +46,7 @@ export class BaseGenerator {
    * Generate service related resources
    * @abstract
    */
-  generateRelatedResources(info, method, service) {
+  generateRequests(info, method, service) {
     throw new Error("Not implemented");
   }
 
@@ -119,7 +96,14 @@ export class BaseGenerator {
    * @param {string} content
    */
   writeFile(path, content) {
-    writeFileSync(path, content);
+    writeFileSync(
+      path,
+      `${this.codeGen.comment(
+        "This file was generated with OpenSDK",
+        "Do not modify this file directly",
+        "Please consult documentation at https://github.com/aulisius/open-sdk"
+      )}\n\n${content}`
+    );
   }
 
   /**
@@ -129,10 +113,10 @@ export class BaseGenerator {
    */
   getMethodParameters(params) {
     const parameters = [];
-    if (!this.isObjectEmpty(params.qs)) {
+    if (!isObjectEmpty(params.qs)) {
       parameters.push({ name: "query", type: "array" });
     }
-    if (!this.isObjectEmpty(params.body)) {
+    if (!isObjectEmpty(params.body)) {
       parameters.push({ name: "body", type: "array" });
     }
     return parameters;
@@ -142,6 +126,7 @@ export class BaseGenerator {
    * Get the return type for a method
    * @protected
    * @param {Array<any>} responses
+   * @returns {string}
    */
   getReturnType(responses) {
     return responses.map((response) => this.normalizeType(response[0]))[0];
@@ -152,6 +137,7 @@ export class BaseGenerator {
    * @abstract
    * @protected
    * @param {Record<string, any>} info
+   * @returns {string}
    */
   normalizeType(info) {
     throw new Error("Not implemented");

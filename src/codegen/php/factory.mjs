@@ -1,10 +1,8 @@
 import { CodeGen } from "../core/factory.mjs";
 
 /**
- * @typedef {'Program' | 'Import' | 'Package' | 'Class' | 'MethodDeclaration' | 'Use' |
-*           'Field' | 'Constructor' | 'Method' | 'Parameter' | 'Enum' | 'Namespace' | 'Property'} Keyword
-*/
-
+ * @typedef {'Use' | 'Namespace' | 'Property'} Keyword
+ */
 
 export class PHPCodeGen extends CodeGen {
   createInterface(name, props, ...children) {
@@ -13,20 +11,17 @@ export class PHPCodeGen extends CodeGen {
       parentInterfaces.length > 0
         ? ` extends ${parentInterfaces.join(", ")}`
         : "";
-    return `interface ${name}${extendsClause} ${this.createBlock(
-      true,
-      ...children
-    )}`;
+    return `interface ${name}${extendsClause} ${this.block(true, ...children)}`;
   }
 
   /**
    *
-   * @param {Keyword} keyword
+   * @param {Keyword | import("../core/factory.mjs").Keyword} keyword
    * @param {*} props
    * @param  {...string} children
    * @returns
    */
-  createSyntax(keyword, props = {}, ...children) {
+  syntax(keyword, props = {}, ...children) {
     switch (keyword) {
       case "Program": {
         return children.filter(Boolean).join("\n");
@@ -52,7 +47,7 @@ export class PHPCodeGen extends CodeGen {
         const implementsClause =
           interfaces.length > 0 ? ` implements ${interfaces.join(", ")}` : "";
 
-        return `${modifiers} class ${name}${extendsClause}${implementsClause} ${this.createBlock(
+        return `${modifiers} class ${name}${extendsClause}${implementsClause} ${this.block(
           true,
           ...children
         )}`;
@@ -69,10 +64,10 @@ export class PHPCodeGen extends CodeGen {
       case "Constructor": {
         const { parameters = [] } = props;
         const params = parameters
-          .map((p) => this.createSyntax("Parameter", p))
+          .map((p) => this.syntax("Parameter", p))
           .join(", ");
 
-        return `public function __construct(${params}) ${this.createBlock(
+        return `public function __construct(${params}) ${this.block(
           true,
           ...children
         )}`;
@@ -96,10 +91,10 @@ export class PHPCodeGen extends CodeGen {
           .join(" ");
 
         const params = parameters
-          .map((p) => this.createSyntax("Parameter", p))
+          .map((p) => this.syntax("Parameter", p))
           .join(", ");
 
-        return `${modifiers} function ${name}(${params}): ${returnType} ${this.createBlock(
+        return `${modifiers} function ${name}(${params}): ${returnType} ${this.block(
           true,
           ...children
         )}`;
@@ -113,16 +108,7 @@ export class PHPCodeGen extends CodeGen {
         return children.join("");
       }
       default:
-        return children.join("");
+        return super.syntax(keyword, props, ...children);
     }
-  }
-
-  createBlock(newScope = false, ...children) {
-    const indent = newScope ? "    " : "";
-    const body = children
-      .filter(Boolean)
-      .map((child) => `${indent}${child}`)
-      .join("\n");
-    return `{\n${body}\n}`;
   }
 }

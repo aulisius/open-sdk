@@ -38,20 +38,15 @@ class Type {
 
 export class TypeScriptCodeGen extends CodeGen {
   createInterface(name, props = {}, ...children) {
-    return `interface ${capitalize(name)} ${this.createBlock(
-      true,
-      ...children
-    )}`;
+    return `interface ${capitalize(name)} ${this.block(true, ...children)}`;
   }
 
   createMethodDefinition(name, { parameters }, ...children) {
-    return this.createSyntax(
+    return this.syntax(
       "MethodDefinition",
       {
         name,
-        parameters: parameters.map((props) =>
-          this.createSyntax("Parameter", props)
-        ),
+        parameters: parameters.map((props) => this.syntax("Parameter", props)),
       },
       ...children
     );
@@ -64,7 +59,7 @@ export class TypeScriptCodeGen extends CodeGen {
    * @param  {...string} children
    * @returns {string}
    */
-  createSyntax(keyword, props = {}, ...children) {
+  syntax(keyword, props = {}, ...children) {
     switch (keyword) {
       case "Import": {
         let { path, importName, isDefault } = props;
@@ -93,31 +88,29 @@ export class TypeScriptCodeGen extends CodeGen {
       }
       case "MethodDeclaration": {
         let { name, returnType } = props;
-        return `${name}(${children.join(",")})${this.createSyntax(
-          "TypeDefinition",
-          { type: returnType }
-        )}`;
+        return `${name}(${children.join(",")})${this.syntax("TypeDefinition", {
+          type: returnType,
+        })}`;
       }
       case "MethodDefinition": {
         let { parameters, async } = props;
-        let decl = this.createSyntax("MethodDeclaration", props, ...parameters);
-        let body = this.createBlock(true, ...children);
+        let decl = this.syntax("MethodDeclaration", props, ...parameters);
+        let body = this.block(true, ...children);
         return `${async ? "async " : ""}${decl} ${body}`;
       }
       case "FunctionDeclaration": {
-        let decl = this.createSyntax("MethodDeclaration", props, ...children);
-        return `function ${decl} ${this.createBlock(true)};`;
+        let decl = this.syntax("MethodDeclaration", props, ...children);
+        return `function ${decl} ${this.block(true)};`;
       }
       case "FunctionDefinition": {
-        let defn = this.createSyntax("MethodDefinition", props, ...children);
+        let defn = this.syntax("MethodDefinition", props, ...children);
         return `function ${defn}`;
       }
       case "Property": {
         let { name, required, type } = props;
-        return `"${name}"${required ? "" : "?"}${this.createSyntax(
-          "TypeDefinition",
-          { type }
-        )}`;
+        return `"${name}"${required ? "" : "?"}${this.syntax("TypeDefinition", {
+          type,
+        })}`;
       }
       case "Class": {
         let { name, members, parent, interfaces = [] } = props;
@@ -125,17 +118,15 @@ export class TypeScriptCodeGen extends CodeGen {
           parent ? ` extends ${parent} ` : ""
         }${
           interfaces.length > 0 ? ` implements ${interfaces.join(",")}` : ""
-        } ${this.createBlock(
+        } ${this.block(
           true,
-          ...members.map((props) =>
-            this.createStatement(this.createSyntax("Property", props))
-          ),
+          ...members.map((props) => this.stmt(this.syntax("Property", props))),
           members.length > 0
             ? this.createMethodDefinition(
                 "constructor",
                 { parameters: members },
                 ...members.map((member) =>
-                  this.createAssignment(`this.${member.name}`, "=", member.name)
+                  this.assignment(`this.${member.name}`, "=", member.name)
                 )
               )
             : "",
