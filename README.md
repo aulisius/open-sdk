@@ -47,12 +47,12 @@ sdk/
 
 ### Java
 ```
-sdk/
+java/
+└── com/opensdk/lib/           # Core library files
 └── com/opensdk/[service]/
-    ├── resource/      # Generated models and DTOs
-    ├── service/       # Service interfaces and implementations  
-    ├── lib/          # Core library files
-    └── Client.java   # Main entry point
+    ├── resource/              # Generated models and DTOs
+    ├── service/               # Service interfaces and implementations  
+    └── {service}Client.java   # Main entry point
 ```
 
 ### PHP 
@@ -86,6 +86,58 @@ interface OpenSDKHttpClient {
 public interface OpenSDKHttpClient {
   <Body, Response> Response execute(RequestDescription<Body> request, Class<Response> responseType);
 }
+```
+
+#### Example implementation using Spring Boot's RestTemplate:
+```java
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.*;
+import org.springframework.web.util.UriComponentsBuilder;
+
+public class SpringOpenSDKHttpClient implements OpenSDKHttpClient {
+  private final RestTemplate restTemplate;
+  private final String baseUrl;
+
+  public SpringOpenSDKHttpClient(String baseUrl) {
+      this.restTemplate = new RestTemplate();
+      this.baseUrl = baseUrl;
+  }
+
+  @Override
+  public <Body, Response> Response execute(RequestDescription<Body> request, Class<Response> responseType) {
+    // Build URL with path parameters
+    var builder = UriComponentsBuilder
+        .fromHttpUrl(baseUrl)
+        .path(request.path())
+        .buildAndExpand(request.pathParams())
+        .toUriString();
+    
+    // Add query parameters
+    request.query().forEach(builder::queryParam);
+
+    // Setup headers
+    var headers = new HttpHeaders();
+    request.headers().forEach(headers::addAll);
+    
+    // Create request entity with body if present
+    HttpEntity<?> entity = request.body() != null 
+        ? new HttpEntity<>(request.body(), headers)
+        : new HttpEntity<>(headers);
+
+    // Execute request
+    var response = restTemplate.exchange(
+        builder.toUriString(),
+        HttpMethod.valueOf(request.method()),
+        entity,
+        responseType
+    );
+    return response.getBody();
+  }
+}
+
+// Usage example:
+var client = new SpringOpenSDKHttpClient("https://api.example.com");
+var sdk = new ExampleSDKClient(client);
 ```
 
 ### PHP
