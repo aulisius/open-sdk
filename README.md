@@ -27,35 +27,71 @@ open-sdk generate --spec api-spec.json --language typescript --output ./sdk
 
 ### CLI Options
 
-- `--spec` (-S): Path to your OpenAPI specification file
-- `--language` (-L): Target programming language (typescript, java, or php)
-- `--output` (-o): Output directory for the generated SDK
+- `--spec` (-S): Path to your OpenAPI specification file (required)
+- `--language` (-L): Target programming language: typescript, java, or php (required)
+- `--output` (-o): Output directory for the generated SDK (required)
 - `--dry-run`: Preview generated files without writing to disk
 
 ## Generated SDK Structure
 
-The generated SDK typically includes:
+The structure varies by language but generally includes:
 
+### TypeScript
 ```
 sdk/
 ├── resources/           # Generated interfaces and models
-│   └── opensdk-http-client.ts
 ├── services/           # Service classes for API operations
-└── client.ts           # Main entry point
+├── lib/               # Core library files
+└── client.ts          # Main entry point
+```
+
+### Java
+```
+sdk/
+└── com/opensdk/[service]/
+    ├── resource/      # Generated models and DTOs
+    ├── service/       # Service interfaces and implementations  
+    ├── lib/          # Core library files
+    └── Client.java   # Main entry point
+```
+
+### PHP 
+```
+sdk/
+└── OpenSDK/
+    ├── Resource/     # Generated models and DTOs
+    ├── Service/      # Service interfaces and implementations
+    ├── Lib/         # Core library files  
+    └── Client.php   # Main entry point
 ```
 
 ## HTTP Client Interface
 
-The generated SDK requires an HTTP client implementation that conforms to the `OpenSDKHttpClient` interface:
+The generated SDK requires an HTTP client implementation that varies by language:
 
+### TypeScript
 ```typescript
 interface OpenSDKHttpClient {
-  execute(
+  execute<T>(
     method: string,
-    path: string,
+    path: string, 
     query: Record<string, any> | null,
     body: Record<string, any> | null
-  ): Promise<any>;
+  ): Promise<T>;
+}
+```
+
+### Java
+```java
+public interface OpenSDKHttpClient {
+  <Body, Response> Response execute(RequestDescription<Body> request, Class<Response> responseType);
+}
+```
+
+### PHP
+```php
+interface OpenSDKHttpClientInterface extends \Psr\Http\Client\ClientInterface {
+  public function execute(string $method, string $path, ?array $query, ?array $body): mixed;
 }
 ```
 
