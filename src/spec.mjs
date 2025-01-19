@@ -1,23 +1,8 @@
 // @ts-check
 import { readFileSync } from "node:fs";
+import { capitalize, cleanRef, reverseCapitalize } from "./util.mjs";
 
-/**
- *
- * @param {string} string
- * @returns {string}
- */
-function capitalize(string) {
-  return string.slice(0, 1).toUpperCase() + string.slice(1);
-}
-
-/**
- *
- * @param {string} string
- * @returns {string}
- */
-function reverseCapitalize(string) {
-  return string.slice(0, 1).toLowerCase() + string.slice(1);
-}
+const SUPPORTED_STATUS = [200, 201, 202, 204];
 
 /**
  *
@@ -45,46 +30,89 @@ export function parseSpecFile(pathToSpecFile) {
   let OperationsWithTypeDef = {};
   function partitionParameters(parameters) {
     let qs = {};
-    let body = {};
     let path = {};
     for (let parameter of parameters) {
       if (parameter.in === "query") {
         qs[parameter.name] = {
           required: parameter.required,
           // TODO: Expand on this
-          type: parameter.schema.type,
+          type: parameter.schema.type ?? parameter.schema.$ref ?? "string",
+        };
+      }
+      if (parameter.in === "path") {
+        path[parameter.name] = {
+          required: parameter.required,
+          // TODO: Expand on this
+          type: parameter.schema.type ?? parameter.schema.$ref ?? "string",
         };
       }
     }
-    return { qs, body, path };
+    return { qs, path };
   }
+  /**
+   * @param {{ [s: string]: any; }} responses
+   */
   function parseResponses(responses) {
     let schemas = [];
     for (let [status, response] of Object.entries(responses)) {
-      // We support JSON response
-      let schema = response.content["application/json"].schema;
-      schemas.push([schema, status]);
+      if (!SUPPORTED_STATUS.includes(Number(status))) {
+        continue;
+      }
+      if (!response.content) {
+        schemas.push([{ $ref: "NoContentResponse" }, status]);
+        continue;
+      }
+      let json = response.content["application/json"];
+      if (json) {
+        let schema = json.schema;
+        schemas.push([schema, status]);
+      }
     }
     return schemas;
   }
+  function markRequestBody(body) {
+    for (let type of [
+      "application/x-www-form-urlencoded",
+      "application/json",
+    ]) {
+      let bodySchema = body?.content?.[type];
+      if (bodySchema) {
+        if (bodySchema.schema?.$ref) {
+          schemaTypes[cleanRef(bodySchema.schema?.$ref)] = {
+            type,
+            component: "body",
+          };
+        }
+        return {
+          contentType: type,
+          schema: bodySchema.schema,
+          required: body.required ?? false,
+        };
+      }
+    }
+    return { contentType: "void", schema: null, required: false };
+  }
+  const schemaTypes = {};
   for (let [NS, operations] of Object.entries(OperationsByNS)) {
     for (let [id, operation] of Object.entries(operations)) {
-      let ns = NS.toLowerCase();
+      let ns = reverseCapitalize(NS);
       let [request, method, path] = operation;
       let params = partitionParameters(request.parameters);
-      let schemas = parseResponses(request.responses);
       OperationsWithTypeDef[ns] ??= {};
       OperationsWithTypeDef[ns][id] = {
         method,
         path,
+        body: markRequestBody(request.requestBody),
+        parameters: request.parameters,
         params,
-        schemas,
+        schemas: parseResponses(request.responses),
       };
     }
   }
   return {
     service: openapi.info.title,
     schemas: openapi.components.schemas,
+    schemaTypes,
     OperationsByNS,
     OperationsWithTypeDef,
   };
