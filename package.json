@@ -2,7 +2,7 @@
   "name": "@faizaanceg/open-sdk",
   "private": false,
   "description": "Yet Another OpenAPI to SDK Generator",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "scripts": {},
   "devDependencies": {
     "@types/node": "^22.10.2"
