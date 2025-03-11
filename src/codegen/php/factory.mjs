@@ -1,7 +1,7 @@
 import { CodeGen } from "../core/factory.mjs";
 
 /**
- * @typedef {'Use' | 'Namespace' | 'Property'} Keyword
+ * @typedef {'Namespace' | 'Property'} Keyword
  */
 
 export class PHPCodeGen extends CodeGen {
@@ -15,6 +15,15 @@ export class PHPCodeGen extends CodeGen {
   }
 
   /**
+   * 
+   * @param {string} path 
+   * @returns {string}
+   */
+  import(path) {
+    return this.stmt(`use ${path}`);
+  }
+
+  /**
    *
    * @param {Keyword | import("../core/factory.mjs").Keyword} keyword
    * @param {*} props
@@ -24,12 +33,15 @@ export class PHPCodeGen extends CodeGen {
   syntax(keyword, props = {}, ...children) {
     switch (keyword) {
       case "Program": {
-        return children.filter(Boolean).join("\n");
+        return []
+          .concat("<?php", ...children)
+          .filter(Boolean)
+          .join("\n");
       }
       case "Namespace": {
-        return `namespace ${props.name};`;
+        return `namespace ${props.name.join("\\")};`;
       }
-      case "Use": {
+      case "Import": {
         const { path } = props;
         return `use ${path};`;
       }
@@ -52,10 +64,21 @@ export class PHPCodeGen extends CodeGen {
           ...children
         )}`;
       }
+      case "Field":
       case "Property": {
-        const { name, type, visibility = "private", readonly = false } = props;
+        const {
+          name,
+          type,
+          final = false,
+          visibility = "private",
+          readonly = false,
+        } = props;
 
-        const modifiers = [visibility, readonly ? "readonly" : ""]
+        const modifiers = [
+          final ? "final" : "",
+          visibility,
+          readonly ? "readonly" : "",
+        ]
           .filter(Boolean)
           .join(" ");
 
@@ -72,7 +95,7 @@ export class PHPCodeGen extends CodeGen {
           ...children
         )}`;
       }
-      case "Method": {
+      case "MethodDeclaration": {
         const {
           name,
           returnType = "void",
@@ -94,7 +117,10 @@ export class PHPCodeGen extends CodeGen {
           .map((p) => this.syntax("Parameter", p))
           .join(", ");
 
-        return `${modifiers} function ${name}(${params}): ${returnType} ${this.block(
+        return `${modifiers} function ${name}(${params}): ${returnType}`;
+      }
+      case "Method": {
+        return `${this.syntax("MethodDeclaration", props)} ${this.block(
           true,
           ...children
         )}`;
