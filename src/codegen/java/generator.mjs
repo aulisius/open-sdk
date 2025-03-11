@@ -84,7 +84,7 @@ export class JavaGenerator extends BaseGenerator {
     if (info.type === "array") {
       return info.items.$ref
         ? `${cleanRef(info.items.$ref)}[]`
-        : `${this.normalizeJavaType(info.items.type)}[]`;
+        : `${this.normalizeJavaType(info.items.type, info.items.format)}[]`;
     }
     if (info.$ref === "NoContentResponse") {
       return "Void";
@@ -98,16 +98,19 @@ export class JavaGenerator extends BaseGenerator {
     if (info.$ref) {
       return cleanRef(info.$ref);
     }
-    return this.normalizeJavaType(info.type);
+    return this.normalizeJavaType(info.type, info.format);
   }
 
-  normalizeJavaType(type) {
+  normalizeJavaType(type, format) {
     const typeMap = {
       integer: "int",
       number: "int",
       string: "String",
       boolean: "boolean",
     };
+    if (typeMap[type] === "String") {
+      return format ?? typeMap[type];
+    }
     return typeMap[type] || "Map<String, Object>";
   }
 
