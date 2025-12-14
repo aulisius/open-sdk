@@ -67,6 +67,10 @@ export function parseSpecFile(pathToSpecFile) {
         let schema = json.schema;
         schemas.push([schema, status]);
       }
+      let text = response.content["text/plain"];
+      if (text) {
+        schemas.push([text.schema, status]);
+      }
     }
     return schemas;
   }
